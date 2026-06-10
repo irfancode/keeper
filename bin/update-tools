@@ -432,6 +432,115 @@ update_pip() {
   ok "pip3    updated user packages"
 }
 
+# ── 13. bat ──────────────────────────────────────────────────────────────
+TOOL_BAT_REPO="sharkdp/bat"
+check_bat() {
+  local current latest
+  current=$(cmd_exists bat && bat --version | awk '{print $2}' || echo "not-installed")
+  latest=$(latest_gh_release "$TOOL_BAT_REPO" | sed 's/^v//')
+  [ "$current" = "$latest" ] && { ok "bat     ${current}"; return 0; } \
+                            || { warn "bat     ${current} → ${latest}"; return 1; }
+}
+
+update_bat() {
+  local ver
+  ver=$(latest_gh_release "$TOOL_BAT_REPO" | sed 's/^v//')
+  log "Downloading bat ${ver}..."
+  local archive="bat-v${ver}-aarch64-apple-darwin.tar.gz"
+  gh release download "v${ver}" -R "$TOOL_BAT_REPO" -p "$archive" --clobber
+  tar xzf "$archive" -C /tmp
+  cp "/tmp/bat-v${ver}-aarch64-apple-darwin/bat" "$TOOLS_DIR/bat"
+  chmod +x "$TOOLS_DIR/bat"
+  rm -f "$archive"
+  rm -rf "/tmp/bat-v${ver}-aarch64-apple-darwin"
+  ok "bat     updated to ${ver}"
+}
+
+# ── 14. lsd ──────────────────────────────────────────────────────────────
+TOOL_LSD_REPO="lsd-rs/lsd"
+check_lsd() {
+  local current latest
+  current=$(cmd_exists lsd && lsd --version | awk '{print $2}' || echo "not-installed")
+  latest=$(latest_gh_release "$TOOL_LSD_REPO" | sed 's/^v//')
+  [ "$current" = "$latest" ] && { ok "lsd     ${current}"; return 0; } \
+                            || { warn "lsd     ${current} → ${latest}"; return 1; }
+}
+
+update_lsd() {
+  local ver
+  ver=$(latest_gh_release "$TOOL_LSD_REPO" | sed 's/^v//')
+  log "Downloading lsd ${ver}..."
+  local archive="lsd-v${ver}-aarch64-apple-darwin.tar.gz"
+  gh release download "v${ver}" -R "$TOOL_LSD_REPO" -p "$archive" --clobber
+  tar xzf "$archive" -C /tmp
+  cp "/tmp/lsd-v${ver}-aarch64-apple-darwin/lsd" "$TOOLS_DIR/lsd"
+  chmod +x "$TOOLS_DIR/lsd"
+  rm -f "$archive"
+  rm -rf "/tmp/lsd-v${ver}-aarch64-apple-darwin"
+  ok "lsd     updated to ${ver}"
+}
+
+# ── 15. lazygit ─────────────────────────────────────────────────────────
+TOOL_LAZYGIT_REPO="jesseduffield/lazygit"
+check_lazygit() {
+  local current latest
+  current=$(cmd_exists lazygit && lazygit --version | head -1 | sed 's/.* version=\([0-9.]*\),.*/\1/' || echo "not-installed")
+  latest=$(latest_gh_release "$TOOL_LAZYGIT_REPO" | sed 's/^v//')
+  [ "$current" = "$latest" ] && { ok "lazygit ${current}"; return 0; } \
+                            || { warn "lazygit ${current} → ${latest}"; return 1; }
+}
+
+update_lazygit() {
+  local ver
+  ver=$(latest_gh_release "$TOOL_LAZYGIT_REPO" | sed 's/^v//')
+  log "Downloading lazygit ${ver}..."
+  local archive="lazygit_${ver}_darwin_arm64.tar.gz"
+  gh release download "v${ver}" -R "$TOOL_LAZYGIT_REPO" -p "$archive" --clobber
+  tar xzf "$archive" -C /tmp
+  cp "/tmp/lazygit" "$TOOLS_DIR/lazygit"
+  chmod +x "$TOOLS_DIR/lazygit"
+  rm -f "$archive"
+  ok "lazygit updated to ${ver}"
+}
+
+# ── 16. Zsh plugins (autosuggestions + syntax-highlighting) ──────────────
+ZSH_PLUGIN_DIR="$HOME/.local/share/zsh/plugins"
+ZSH_PLUGINS=(
+  "zsh-autosuggestions:zsh-users/zsh-autosuggestions"
+  "zsh-syntax-highlighting:zsh-users/zsh-syntax-highlighting"
+)
+
+check_zsh_plugins() {
+  local outdated=0
+  local total=${#ZSH_PLUGINS[@]}
+  local entry name dir commit_date
+  for entry in "${ZSH_PLUGINS[@]}"; do
+    name="${entry%%:*}"
+    dir="$ZSH_PLUGIN_DIR/$name"
+    if [ ! -d "$dir" ]; then
+      warn "zsh-plug ${name}  not-installed"
+      outdated=$((outdated + 1))
+    else
+      commit_date=$(cd "$dir" && git log -1 --format=%cs 2>/dev/null || echo "?")
+      ok "zsh-plug ${name}  ${commit_date}"
+    fi
+  done
+  return "$outdated"
+}
+
+update_zsh_plugins() {
+  for entry in "${ZSH_PLUGINS[@]}"; do
+    local name="${entry%%:*}"
+    local repo="${entry##*:}"
+    local dir="$ZSH_PLUGIN_DIR/$name"
+    if [ -d "$dir" ]; then
+      log "Updating ${name}..."
+      (cd "$dir" && git pull --ff-only --depth 1 2>/dev/null)
+    fi
+  done
+  ok "zsh-plug updated all plugins"
+}
+
 # ── Run checks / updates ────────────────────────────────────────────────
 TOOLS=(
   nvim
@@ -446,6 +555,10 @@ TOOLS=(
   homebrew
   npm_global
   pip
+  bat
+  lsd
+  lazygit
+  zsh_plugins
 )
 
 check_all() {
@@ -491,7 +604,7 @@ update_single() {
 
   if ! type "check_${target}" &>/dev/null; then
     fail "Unknown tool: $target"
-    echo "Available: nvim node fzf rg starship zoxide opencode gh go brew pip npm"
+    echo "Available: nvim node fzf rg starship zoxide opencode gh go brew pip npm bat lsd lazygit zsh-plugins"
     return 1
   fi
   header "Checking ${target}..."
