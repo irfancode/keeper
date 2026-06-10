@@ -1,0 +1,29 @@
+#!/usr/bin/env zsh
+# tool-updater-toggle — Enable/disable weekly automatic tool update checks
+#   tool-updater-toggle on    — load and start the LaunchAgent
+#   tool-updater-toggle off   — unload and stop the LaunchAgent
+#   tool-updater-toggle status — show current status
+
+PLIST="$HOME/Library/LaunchAgents/com.irfan.tool-updater.plist"
+LABEL="com.irfan.tool-updater"
+
+case "${1:-status}" in
+  on|start|enable|load)
+    launchctl load -w "$PLIST" 2>/dev/null
+    echo "✓ Weekly tool update checks enabled (Mon 10 AM)"
+    ;;
+  off|stop|disable|unload)
+    launchctl unload -w "$PLIST" 2>/dev/null
+    echo "✗ Weekly tool update checks disabled"
+    ;;
+  status)
+    if launchctl list | grep -q "$LABEL"; then
+      echo "● Active — weekly checks are enabled"
+    else
+      echo "○ Inactive — weekly checks are disabled"
+    fi
+    ;;
+  *)
+    echo "Usage: tool-updater-toggle {on|off|status}"
+    ;;
+esac
